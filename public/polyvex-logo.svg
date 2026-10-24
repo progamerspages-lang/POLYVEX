@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 240 240"
+     width="240"
+     height="240"
+     fill="none">
+  <defs>
+    <linearGradient id="polyvex-cyan"
+                    x1="35" y1="25"
+                    x2="205" y2="215"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#35F2D0"/>
+      <stop offset="1" stop-color="#00AFC8"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M120 12
+           L194 42
+           L226 112
+           L198 188
+           L120 228
+           L42 188
+           L14 112
+           L46 42 Z"
+        stroke="url(#polyvex-cyan)"
+        stroke-width="5"
+        stroke-linejoin="round"/>
+
+  <path d="M120 31
+           L179 55
+           L204 112
+           L181 169
+           L120 202
+           L59 169
+           L36 112
+           L61 55 Z"
+        stroke="#64748B"
+        stroke-width="1.5"
+        stroke-opacity=".8"
+        stroke-linejoin="round"/>
+
+  <path d="M73 157 V79 H112
+           C137 79 150 92 150 113
+           C150 134 137 147 112 147
+           H94"
+        stroke="url(#polyvex-cyan)"
+        stroke-width="12"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <path d="M112 157 L145 112 L178 157"
+        stroke="#D1D5DB"
+        stroke-width="11"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <circle cx="178" cy="157" r="5" fill="#35F2D0"/>
+</svg>

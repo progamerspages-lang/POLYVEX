@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+:root {
+  --polyvex-bg: #090B0D;
+  --polyvex-surface: #171A1E;
+  --polyvex-primary: #35F2D0;
+  --polyvex-secondary: #00AFC8;
+  --polyvex-slate: #64748B;
+  --polyvex-text: #F5F7FA;
+  --polyvex-muted: #A1A8B3;
+  --polyvex-border: #262A30;
+}
+
+@layer base {
+  body {
+    background-color: #090B0D;
+    color: #F5F7FA;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Custom scrollbars for clean dark interface */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090B0D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262A30;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #35F2D0;
+}
+
+/* Print-to-PDF specific formatting for formal laboratory reports */
+@media print {
+  header,
+  nav,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body,
+  main {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
