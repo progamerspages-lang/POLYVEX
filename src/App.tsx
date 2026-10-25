@@ -13,6 +13,14 @@ import { AssistantModule } from './components/AssistantModule.tsx';
 import { PromptLibraryModule } from './components/PromptLibraryModule.tsx';
 import { ResourcesModule } from './components/ResourcesModule.tsx';
 import { SettingsModule } from './components/SettingsModule.tsx';
+import { WelcomeScreen } from './components/WelcomeScreen.tsx';
+import { OnboardingFlow } from './components/OnboardingFlow.tsx';
+import { SignUpScreen } from './components/SignUpScreen.tsx';
+import { LoginScreen } from './components/LoginScreen.tsx';
+import { CreateCourseModal } from './components/CreateCourseModal.tsx';
+import { isSupabaseConfigured, getCurrentSession, signOutUser, onAuthStateChange } from './utils/supabaseClient.ts';
+
+export type AuthScreenView = 'welcome' | 'onboarding' | 'signup' | 'login' | 'app';
 
 export default function App() {
   const [db, setDb] = useState<AppDatabase>(() => loadDatabase());
@@ -21,15 +29,75 @@ export default function App() {
     return db.profile.preferredTheme === 'dark' ? 'dark' : 'light';
   });
 
+  // Active auth / onboarding screen view
+  const [authScreen, setAuthScreen] = useState<AuthScreenView>(() => {
+    return db.profile.onboardingCompleted ? 'app' : 'welcome';
+  });
+  const [authMode, setAuthMode] = useState<'cloud' | 'local'>('local');
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+
   // Active practical report to open in editor
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   // Pre-fill state for AI Study Assistant
   const [assistantPrefill, setAssistantPrefill] = useState<{ courseId?: string; topic?: string }>({});
 
-  // Sync database state to localStorage
+  // Global course creation modal state
+  const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
+
+  // Desktop sidebar collapse state
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('polyvex_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleDesktopSidebar = () => {
+    setIsDesktopCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('polyvex_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Listen to Supabase Session if configured
   useEffect(() => {
-    saveDatabase(db);
+    if (isSupabaseConfigured) {
+      getCurrentSession().then((session) => {
+        if (session?.user) {
+          setAuthMode('cloud');
+          setUserEmail(session.user.email);
+          if (db.profile.onboardingCompleted) {
+            setAuthScreen('app');
+          }
+        }
+      });
+
+      const subscription = onAuthStateChange((session) => {
+        if (session?.user) {
+          setAuthMode('cloud');
+          setUserEmail(session.user.email);
+        } else {
+          setUserEmail(undefined);
+        }
+      });
+
+      return () => {
+        subscription?.unsubscribe?.();
+      };
+    }
+  }, [db.profile.onboardingCompleted]);
+
+  // Sync database state to localStorage with debounce for performance
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      saveDatabase(db);
+    }, 350);
+    return () => clearTimeout(handler);
   }, [db]);
 
   // Sync theme to HTML document element
@@ -344,12 +412,142 @@ export default function App() {
     saveDatabase(cleanDb);
   };
 
+  // Flow navigation handlers
+  const handleWelcomeGetStarted = () => {
+    setAuthScreen('onboarding');
+  };
+
+  const handleWelcomeLogIn = () => {
+    setAuthScreen('login');
+  };
+
+  const handleWelcomeContinueLocal = () => {
+    setAuthMode('local');
+    setAuthScreen('onboarding');
+  };
+
+  const handleSignUpSuccess = (userData: { email: string; name: string }) => {
+    setUserEmail(userData.email);
+    setAuthMode('cloud');
+    if (userData.name) {
+      setDb((prev) => ({
+        ...prev,
+        profile: {
+          ...prev.profile,
+          name: userData.name,
+        },
+      }));
+    }
+    setAuthScreen('onboarding');
+  };
+
+  const handleLoginSuccess = (userData: { email: string; name?: string }) => {
+    setUserEmail(userData.email);
+    setAuthMode('cloud');
+    if (userData.name && !db.profile.name) {
+      setDb((prev) => ({
+        ...prev,
+        profile: {
+          ...prev.profile,
+          name: userData.name || prev.profile.name || '',
+        },
+      }));
+    }
+    if (db.profile.onboardingCompleted) {
+      setAuthScreen('app');
+      setCurrentTab('dashboard');
+    } else {
+      setAuthScreen('onboarding');
+    }
+  };
+
+  const handleOnboardingComplete = (updatedProfile: StudentProfile, _preferences: string[]) => {
+    const finalProfile: StudentProfile = {
+      ...updatedProfile,
+      onboardingCompleted: true,
+    };
+    setDb((prev) => ({
+      ...prev,
+      profile: finalProfile,
+    }));
+    saveDatabase({
+      ...db,
+      profile: finalProfile,
+    });
+    setAuthScreen('app');
+    setCurrentTab('dashboard');
+  };
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    setUserEmail(undefined);
+    setAuthMode('local');
+    setAuthScreen('welcome');
+  };
+
+  const handleReRunOnboarding = () => {
+    setAuthScreen('onboarding');
+  };
+
   // Report to pass into ReportEditor
   const activeReport = db.reports.find((r) => r.id === selectedReportId) || db.reports[0] || null;
 
+  // Unauthenticated / Onboarding Screen Branches
+  if (authScreen === 'welcome') {
+    return (
+      <WelcomeScreen
+        onGetStarted={handleWelcomeGetStarted}
+        onLogIn={handleWelcomeLogIn}
+        onContinueLocal={handleWelcomeContinueLocal}
+        isCloudConfigured={isSupabaseConfigured}
+      />
+    );
+  }
+
+  if (authScreen === 'signup') {
+    return (
+      <SignUpScreen
+        onSuccess={handleSignUpSuccess}
+        onNavigateToLogin={() => setAuthScreen('login')}
+        onContinueLocal={() => {
+          setAuthMode('local');
+          setAuthScreen('onboarding');
+        }}
+      />
+    );
+  }
+
+  if (authScreen === 'login') {
+    return (
+      <LoginScreen
+        onSuccess={handleLoginSuccess}
+        onNavigateToSignUp={() => setAuthScreen('signup')}
+        onContinueLocal={() => {
+          setAuthMode('local');
+          if (db.profile.onboardingCompleted) {
+            setAuthScreen('app');
+            setCurrentTab('dashboard');
+          } else {
+            setAuthScreen('onboarding');
+          }
+        }}
+      />
+    );
+  }
+
+  if (authScreen === 'onboarding') {
+    return (
+      <OnboardingFlow
+        initialProfile={db.profile}
+        onComplete={handleOnboardingComplete}
+        onCancel={() => setAuthScreen('welcome')}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-stone-100 dark:bg-stone-950 text-stone-900 dark:text-stone-100 transition-colors pb-20 lg:pb-12 font-sans antialiased">
-      {/* Navigation Header */}
+    <div className="min-h-screen bg-[#090B0D] text-[#F5F7FA] transition-colors pb-10 font-sans antialiased overflow-x-hidden">
+      {/* Navigation Header & Desktop Sidebar */}
       <Navigation
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
@@ -357,130 +555,155 @@ export default function App() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
         onOpenQuickAdd={handleOpenQuickAdd}
+        onOpenAddCourse={() => setIsAddCourseModalOpen(true)}
+        authMode={authMode}
+        userEmail={userEmail}
+        onSignOut={handleSignOut}
+        isDesktopCollapsed={isDesktopCollapsed}
+        onToggleDesktopSidebar={handleToggleDesktopSidebar}
       />
 
-      {/* Main View Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {currentTab === 'dashboard' && (
-          <Dashboard
-            db={db}
-            onNavigate={setCurrentTab}
-            onOpenQuickAdd={handleOpenQuickAdd}
-            onSelectTask={(id) => {
-              setCurrentTab('tasks');
-            }}
-            onSelectReport={(reportId) => {
-              setSelectedReportId(reportId);
-              setCurrentTab('report-editor');
-            }}
-          />
-        )}
+      {/* Main View Area with Desktop Sidebar Offset */}
+      <div className={`transition-all duration-200 ease-in-out ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-64'}`}>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          {currentTab === 'dashboard' && (
+            <Dashboard
+              db={db}
+              onNavigate={setCurrentTab}
+              onOpenQuickAdd={handleOpenQuickAdd}
+              onSelectTask={(id) => {
+                setCurrentTab('tasks');
+              }}
+              onSelectReport={(reportId) => {
+                setSelectedReportId(reportId);
+                setCurrentTab('report-editor');
+              }}
+            />
+          )}
 
-        {currentTab === 'timetable' && (
-          <TimetableModule
-            timetable={db.timetable}
-            courses={db.courses}
-            onSaveEntry={handleSaveTimetableEntry}
-            onDeleteEntry={handleDeleteTimetableEntry}
-            onDuplicateEntry={handleDuplicateTimetableEntry}
-            onToggleCancelledDate={handleToggleCancelledDate}
-          />
-        )}
+          {currentTab === 'timetable' && (
+            <TimetableModule
+              timetable={db.timetable}
+              courses={db.courses}
+              onSaveEntry={handleSaveTimetableEntry}
+              onDeleteEntry={handleDeleteTimetableEntry}
+              onDuplicateEntry={handleDuplicateTimetableEntry}
+              onToggleCancelledDate={handleToggleCancelledDate}
+            />
+          )}
 
-        {currentTab === 'tasks' && (
-          <TasksModule
-            tasks={db.tasks}
-            courses={db.courses}
-            onSaveTask={handleSaveTask}
-            onDeleteTask={handleDeleteTask}
-            onDuplicateTask={handleDuplicateTask}
-            onToggleStatus={handleToggleTaskStatus}
-          />
-        )}
+          {currentTab === 'tasks' && (
+            <TasksModule
+              tasks={db.tasks}
+              courses={db.courses}
+              onSaveTask={handleSaveTask}
+              onDeleteTask={handleDeleteTask}
+              onDuplicateTask={handleDuplicateTask}
+              onToggleStatus={handleToggleTaskStatus}
+            />
+          )}
 
-        {currentTab === 'courses' && (
-          <CoursesModule
-            db={db}
-            onSaveCourse={handleSaveCourse}
-            onDeleteCourse={handleDeleteCourse}
-          />
-        )}
+          {currentTab === 'courses' && (
+            <CoursesModule
+              db={db}
+              onSaveCourse={handleSaveCourse}
+              onDeleteCourse={handleDeleteCourse}
+            />
+          )}
 
-        {currentTab === 'practicals' && (
-          <PracticalsModule
-            practicals={db.practicals}
-            courses={db.courses}
-            reports={db.reports}
-            onSavePractical={handleSavePractical}
-            onDeletePractical={handleDeletePractical}
-            onOpenReportDraft={handleOpenReportDraft}
-          />
-        )}
+          {currentTab === 'practicals' && (
+            <PracticalsModule
+              practicals={db.practicals}
+              courses={db.courses}
+              reports={db.reports}
+              onSavePractical={handleSavePractical}
+              onDeletePractical={handleDeletePractical}
+              onOpenReportDraft={handleOpenReportDraft}
+            />
+          )}
 
-        {currentTab === 'report-editor' && (
-          <ReportEditor
-            initialReport={activeReport}
-            courses={db.courses}
-            practicals={db.practicals}
-            profile={db.profile}
-            onSaveReport={handleSaveReport}
-            onBackToPracticals={() => setCurrentTab('practicals')}
-          />
-        )}
+          {currentTab === 'report-editor' && (
+            <ReportEditor
+              initialReport={activeReport}
+              courses={db.courses}
+              practicals={db.practicals}
+              profile={db.profile}
+              onSaveReport={handleSaveReport}
+              onBackToPracticals={() => setCurrentTab('practicals')}
+            />
+          )}
 
-        {currentTab === 'revision' && (
-          <RevisionModule
-            topics={db.topics}
-            courses={db.courses}
-            tasks={db.tasks}
-            onSaveTopic={handleSaveTopic}
-            onDeleteTopic={handleDeleteTopic}
-            onRecordSession={handleRecordSession}
-            onOpenAssistantForTopic={(cId, tTitle) => {
-              setAssistantPrefill({ courseId: cId, topic: tTitle });
-              setCurrentTab('ai-assistant');
-            }}
-          />
-        )}
+          {currentTab === 'revision' && (
+            <RevisionModule
+              topics={db.topics}
+              courses={db.courses}
+              tasks={db.tasks}
+              onSaveTopic={handleSaveTopic}
+              onDeleteTopic={handleDeleteTopic}
+              onRecordSession={handleRecordSession}
+              onOpenAssistantForTopic={(cId, tTitle) => {
+                setAssistantPrefill({ courseId: cId, topic: tTitle });
+                setCurrentTab('ai-assistant');
+              }}
+            />
+          )}
 
-        {currentTab === 'ai-assistant' && (
-          <AssistantModule
-            courses={db.courses}
-            prefilledCourseId={assistantPrefill.courseId}
-            prefilledTopic={assistantPrefill.topic}
-          />
-        )}
+          {currentTab === 'ai-assistant' && (
+            <AssistantModule
+              courses={db.courses}
+              resources={db.resources}
+              prefilledCourseId={assistantPrefill.courseId}
+              prefilledTopic={assistantPrefill.topic}
+              onNavigate={setCurrentTab}
+              onOpenAddCourse={() => setIsAddCourseModalOpen(true)}
+            />
+          )}
 
-        {currentTab === 'prompt-library' && (
-          <PromptLibraryModule
-            courses={db.courses}
-            studentLevel={db.profile.level}
-            onUseInAssistant={(cId, pText) => {
-              setAssistantPrefill({ courseId: cId, topic: pText.slice(0, 40) });
-              setCurrentTab('ai-assistant');
-            }}
-          />
-        )}
+          {currentTab === 'prompt-library' && (
+            <PromptLibraryModule
+              courses={db.courses}
+              studentLevel={db.profile.level}
+              onUseInAssistant={(cId, pText) => {
+                setAssistantPrefill({ courseId: cId, topic: pText.slice(0, 40) });
+                setCurrentTab('ai-assistant');
+              }}
+            />
+          )}
 
-        {currentTab === 'resources' && (
-          <ResourcesModule
-            resources={db.resources}
-            courses={db.courses}
-            topics={db.topics}
-            onSaveResource={handleSaveResource}
-            onDeleteResource={handleDeleteResource}
-          />
-        )}
+          {currentTab === 'resources' && (
+            <ResourcesModule
+              resources={db.resources}
+              courses={db.courses}
+              topics={db.topics}
+              onSaveResource={handleSaveResource}
+              onDeleteResource={handleDeleteResource}
+            />
+          )}
 
-        {currentTab === 'settings' && (
-          <SettingsModule
-            db={db}
-            onUpdateProfile={handleUpdateProfile}
-            onImportBackup={handleImportBackup}
-            onResetDatabase={handleResetDatabase}
-          />
-        )}
-      </main>
+          {currentTab === 'settings' && (
+            <SettingsModule
+              db={db}
+              onUpdateProfile={handleUpdateProfile}
+              onImportBackup={handleImportBackup}
+              onResetDatabase={handleResetDatabase}
+              authMode={authMode}
+              userEmail={userEmail}
+              onSignOut={handleSignOut}
+              onReRunOnboarding={handleReRunOnboarding}
+            />
+          )}
+        </main>
+      </div>
+
+      {/* Global Add Course Modal (triggered by header 'Add Courses' button) */}
+      <CreateCourseModal
+        isOpen={isAddCourseModalOpen}
+        onClose={() => setIsAddCourseModalOpen(false)}
+        onSave={handleSaveCourse}
+        existingCourseCount={db.courses.length}
+        defaultSemester={db.profile.semester}
+        defaultDepartment={db.profile.department}
+      />
     </div>
   );
 }

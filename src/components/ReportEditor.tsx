@@ -376,11 +376,15 @@ ${draft.conclusion}`;
                   onChange={(e) => setDraft({ ...draft, courseId: e.target.value })}
                   className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg p-2 text-stone-900 dark:text-stone-100"
                 >
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code} — {c.title}
-                    </option>
-                  ))}
+                  {courses.length === 0 ? (
+                    <option value="">No courses added yet (Register a course first)</option>
+                  ) : (
+                    courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.code} — {c.title}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

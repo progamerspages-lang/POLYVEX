@@ -413,7 +413,7 @@ export const ResourcesModule: React.FC<ResourcesModuleProps> = ({
             </div>
             <div className="max-w-md mx-auto space-y-1.5">
               <h3 className="text-base font-bold text-stone-900 dark:text-stone-100">
-                Your Resource Library is Empty
+                No study resources added.
               </h3>
               <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
                 Save textbook links, departmental past question drives, lecture PDF notes, and tutorial videos in one central place. Filter by course and tag at examination time.
@@ -621,11 +621,15 @@ export const ResourcesModule: React.FC<ResourcesModuleProps> = ({
                     onChange={(e) => setEditingRes({ ...editingRes, courseId: e.target.value })}
                     className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl p-2.5 text-stone-900 dark:text-stone-100 font-medium"
                   >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.code} — {c.title}
-                      </option>
-                    ))}
+                    {courses.length === 0 ? (
+                      <option value="">No courses added yet (Register a course first)</option>
+                    ) : (
+                      courses.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.code} — {c.title}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 

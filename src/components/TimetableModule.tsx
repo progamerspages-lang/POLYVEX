@@ -559,7 +559,8 @@ export const TimetableModule: React.FC<TimetableModuleProps> = ({
                     </td>
                   </tr>
                 );
-              })}
+              })
+              )}
             </tbody>
           </table>
         </div>

@@ -124,7 +124,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Alex, Chidi, Sarah"
+                    placeholder="e.g. Alex, Amara, or David"
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#090B0D] border border-[#262A30] text-[#F5F7FA] placeholder-[#64748B] text-sm focus:outline-none focus:border-[#35F2D0] transition"
                   />
                 </div>

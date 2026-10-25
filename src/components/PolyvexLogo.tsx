@@ -36,11 +36,11 @@ export const PolyvexLogo: React.FC<PolyvexLogoProps> = ({
       onClick={onClick}
     >
       <img
-        src="/polyvex-logo.svg"
+        src="/assets/aistudio/AaFvlbeHeQWL4ZujC4mUCw-AaFvlbeHMJmL6yCvAt9X9g.jpg-removebg-preview_db85c46e.png"
         alt="POLYVEX Logo"
         width={pixelSize}
         height={pixelSize}
-        className="flex-shrink-0 object-contain drop-shadow-[0_0_12px_rgba(53,242,208,0.25)]"
+        className="shrink-0 object-contain drop-shadow-[0_0_12px_rgba(53,242,208,0.25)] transition-transform duration-200"
         style={{ width: `${pixelSize}px`, height: `${pixelSize}px` }}
       />
 

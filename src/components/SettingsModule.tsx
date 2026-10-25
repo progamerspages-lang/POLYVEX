@@ -19,12 +19,17 @@ import {
 import { AppDatabase, StudentProfile } from '../types/index.ts';
 import { exportDatabaseAsJson, exportTasksToCsv } from '../utils/storage.ts';
 import { validateBackupSchema } from '../utils/academicMath.ts';
+import { isSupabaseConfigured } from '../utils/supabaseClient.ts';
 
 interface SettingsModuleProps {
   db: AppDatabase;
   onUpdateProfile: (profile: StudentProfile) => void;
   onImportBackup: (importedDb: AppDatabase) => void;
   onResetDatabase: () => void;
+  authMode?: 'cloud' | 'local';
+  userEmail?: string;
+  onSignOut?: () => void;
+  onReRunOnboarding?: () => void;
 }
 
 const NIGERIAN_INSTITUTION_PRESETS = [
@@ -47,6 +52,10 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
   onUpdateProfile,
   onImportBackup,
   onResetDatabase,
+  authMode = 'local',
+  userEmail,
+  onSignOut,
+  onReRunOnboarding,
 }) => {
   const [profileForm, setProfileForm] = useState<StudentProfile>({ ...db.profile });
   const [profileSaved, setProfileSaved] = useState(false);
@@ -294,23 +303,72 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
           <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs space-y-3 text-xs">
             <h2 className="text-sm font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 flex items-center gap-2 border-b pb-2 border-stone-200 dark:border-stone-800">
               <HardDrive className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              <span>Storage Architecture</span>
+              <span>Authentication & Data Architecture</span>
             </h2>
 
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/60 dark:border-emerald-800/60 rounded-xl text-emerald-950 dark:text-emerald-200 space-y-1">
-              <strong className="block font-semibold">Local Storage Mode Active</strong>
-              <p className="text-[11px] leading-relaxed">
-                Polyvex runs 100% offline-ready in your browser storage. No mandatory account creation or subscription required. Use the JSON backup tools below to transfer your courses and notes across devices.
-              </p>
-            </div>
+            {/* Cloud Status or Local Mode Status */}
+            {isSupabaseConfigured ? (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/60 dark:border-emerald-800/60 rounded-xl text-emerald-950 dark:text-emerald-200 space-y-1">
+                <div className="flex items-center justify-between">
+                  <strong className="font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Supabase Cloud Auth Active</span>
+                  </strong>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-200/50 dark:bg-emerald-800/40">
+                    {authMode === 'cloud' ? 'Authenticated' : 'Local Workspace'}
+                  </span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  {userEmail ? `Signed in as: ${userEmail}` : 'Connected to Supabase cloud project.'}
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-stone-50 dark:bg-[#1A1E24] border border-[#262A30] rounded-xl text-stone-700 dark:text-stone-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <strong className="font-semibold flex items-center gap-1.5 text-stone-900 dark:text-stone-100">
+                    <HardDrive className="w-3.5 h-3.5 text-[#35F2D0]" />
+                    <span>Offline Local Storage Active</span>
+                  </strong>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#171A1E] text-[#35F2D0] border border-[#262A30]">
+                    Local Mode
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#A1A8B3] leading-relaxed">
+                  Polyvex is running locally in your browser storage with zero cloud dependencies. No mandatory cloud accounts or recurring fees.
+                </p>
+                <div className="p-2.5 rounded-lg bg-[#090B0D] border border-[#262A30] text-[10px] text-stone-400 space-y-1">
+                  <span className="font-semibold text-stone-300 block">Supabase Cloud Setup:</span>
+                  <p>To enable cloud authentication and sync across devices, provide these keys in your <code className="text-[#35F2D0]">.env</code>:</p>
+                  <code className="block text-[10px] text-stone-400 font-mono select-all">
+                    VITE_SUPABASE_URL=https://your-project.supabase.co<br />
+                    VITE_SUPABASE_ANON_KEY=your-anon-key
+                  </code>
+                </div>
+              </div>
+            )}
 
-            <div className="p-3 bg-stone-50 dark:bg-stone-800/40 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 space-y-1">
-              <strong className="block font-semibold text-stone-800 dark:text-stone-200">
-                Optional Cloud Synchronization:
-              </strong>
-              <p className="text-[11px] leading-relaxed">
-                A cloud database (such as Supabase or Firebase) can be plugged in seamlessly when server credentials and authenticated user tokens are provisioned.
-              </p>
+            {/* Quick Actions: Re-run Onboarding & Sign Out */}
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              {onReRunOnboarding && (
+                <button
+                  type="button"
+                  onClick={onReRunOnboarding}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-medium cursor-pointer"
+                >
+                  <RefreshCcw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Re-run Onboarding Flow</span>
+                </button>
+              )}
+              {onSignOut && (
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-700 dark:text-rose-400 font-medium cursor-pointer"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Sign Out / Switch Mode</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -406,14 +464,14 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm('Are you sure you want to reset all records back to starter sample data? Export a backup first to preserve your custom notes.')) {
+                  if (confirm('Are you sure you want to reset all academic records to a clean empty workspace? This will clear all courses, timetable entries, tasks, and lab records. Export a backup first to preserve your custom notes.')) {
                     onResetDatabase();
                   }
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 cursor-pointer text-xs"
               >
                 <RefreshCcw className="w-3.5 h-3.5" />
-                <span>Reset to Clean Starter Data</span>
+                <span>Reset to Clean Empty Workspace</span>
               </button>
             </div>
           </div>

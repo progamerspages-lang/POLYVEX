@@ -924,7 +924,9 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
             {filteredTopics.length === 0 ? (
               <div className="col-span-full bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 p-12 text-center text-xs space-y-3">
                 <BookOpen className="w-8 h-8 text-stone-400 mx-auto" />
-                <p className="text-stone-600 dark:text-stone-400">No revision topics found matching your criteria.</p>
+                <p className="text-stone-600 dark:text-stone-400 font-medium">
+                  {topics.length === 0 ? 'No revision items yet.' : 'No revision topics found matching your criteria.'}
+                </p>
                 <button
                   type="button"
                   onClick={handleOpenNewTopic}
@@ -1117,11 +1119,15 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                   onChange={(e) => setEditingTopic({ ...editingTopic, courseId: e.target.value })}
                   className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl p-2.5 text-stone-900 dark:text-stone-100"
                 >
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code} — {c.title}
-                    </option>
-                  ))}
+                  {courses.length === 0 ? (
+                    <option value="">No courses added yet (Register a course first)</option>
+                  ) : (
+                    courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.code} — {c.title}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

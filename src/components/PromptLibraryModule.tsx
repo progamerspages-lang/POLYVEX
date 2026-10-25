@@ -104,11 +104,15 @@ export const PromptLibraryModule: React.FC<PromptLibraryModuleProps> = ({
               onChange={(e) => setSelectedCourseCode(e.target.value)}
               className="w-full bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg p-2 text-stone-900 dark:text-stone-100 font-mono"
             >
-              {courses.map((c) => (
-                <option key={c.id} value={c.code}>
-                  {c.code} — {c.title}
-                </option>
-              ))}
+              {courses.length === 0 ? (
+                <option value="GENERAL">No courses registered (General)</option>
+              ) : (
+                courses.map((c) => (
+                  <option key={c.id} value={c.code}>
+                    {c.code} — {c.title}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
