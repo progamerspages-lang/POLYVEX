@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny catch-all (Pillar 1)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers (Phase 3)
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Entity Validation Blueprints (Pillar 2)
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 256;
+    }
+
+    function isValidCourse(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.code is string && data.code.size() <= 64 &&
+             data.title is string && data.title.size() <= 200;
+    }
+
+    function isValidTimetableEntry(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.courseId is string && data.courseId.size() <= 128 &&
+             data.dayOfWeek is string && data.dayOfWeek.size() <= 20 &&
+             data.startTime is string && data.startTime.size() <= 10 &&
+             data.endTime is string && data.endTime.size() <= 10;
+    }
+
+    function isValidTask(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.courseId is string && data.courseId.size() <= 128 &&
+             data.taskType is string && data.taskType.size() <= 64 &&
+             data.priority is string && data.priority.size() <= 20 &&
+             data.status is string && data.status.size() <= 32;
+    }
+
+    function isValidPractical(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.courseId is string && data.courseId.size() <= 128 &&
+             data.experimentTitle is string && data.experimentTitle.size() <= 256 &&
+             data.practicalDate is string && data.practicalDate.size() <= 20 &&
+             data.reportStatus is string && data.reportStatus.size() <= 32;
+    }
+
+    function isValidReport(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.courseId is string && data.courseId.size() <= 128 &&
+             data.experimentTitle is string && data.experimentTitle.size() <= 256;
+    }
+
+    function isValidTopic(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.courseId is string && data.courseId.size() <= 128 &&
+             data.title is string && data.title.size() <= 256 &&
+             data.confidence is number &&
+             data.status is string && data.status.size() <= 32;
+    }
+
+    function isValidSession(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.topicId is string && data.topicId.size() <= 128 &&
+             data.date is string && data.date.size() <= 20 &&
+             data.durationMinutes is number;
+    }
+
+    function isValidResource(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.title is string && data.title.size() <= 256 &&
+             data.courseId is string && data.courseId.size() <= 128 &&
+             data.type is string && data.type.size() <= 64 &&
+             data.linkOrRef is string && data.linkOrRef.size() <= 1000;
+    }
+
+    // User Profile Document (Isolated, no blanket listing)
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && incoming().uid == existing().uid;
+      allow delete: if false;
+
+      // User Subcollections (Isolated under users/{userId})
+      match /courses/{courseId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(courseId) && isValidCourse(incoming());
+        allow update: if isOwner(userId) && isValidId(courseId) && isValidCourse(incoming());
+        allow delete: if isOwner(userId) && isValidId(courseId);
+      }
+
+      match /timetable/{entryId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(entryId) && isValidTimetableEntry(incoming());
+        allow update: if isOwner(userId) && isValidId(entryId) && isValidTimetableEntry(incoming());
+        allow delete: if isOwner(userId) && isValidId(entryId);
+      }
+
+      match /tasks/{taskId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(taskId) && isValidTask(incoming());
+        allow update: if isOwner(userId) && isValidId(taskId) && isValidTask(incoming());
+        allow delete: if isOwner(userId) && isValidId(taskId);
+      }
+
+      match /practicals/{practicalId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(practicalId) && isValidPractical(incoming());
+        allow update: if isOwner(userId) && isValidId(practicalId) && isValidPractical(incoming());
+        allow delete: if isOwner(userId) && isValidId(practicalId);
+      }
+
+      match /reports/{reportId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(reportId) && isValidReport(incoming());
+        allow update: if isOwner(userId) && isValidId(reportId) && isValidReport(incoming());
+        allow delete: if isOwner(userId) && isValidId(reportId);
+      }
+
+      match /topics/{topicId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(topicId) && isValidTopic(incoming());
+        allow update: if isOwner(userId) && isValidId(topicId) && isValidTopic(incoming());
+        allow delete: if isOwner(userId) && isValidId(topicId);
+      }
+
+      match /sessions/{sessionId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(sessionId) && isValidSession(incoming());
+        allow update: if isOwner(userId) && isValidId(sessionId) && isValidSession(incoming());
+        allow delete: if isOwner(userId) && isValidId(sessionId);
+      }
+
+      match /resources/{resourceId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(resourceId) && isValidResource(incoming());
+        allow update: if isOwner(userId) && isValidId(resourceId) && isValidResource(incoming());
+        allow delete: if isOwner(userId) && isValidId(resourceId);
+      }
+    }
+  }
+}

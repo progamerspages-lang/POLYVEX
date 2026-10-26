@@ -351,6 +351,8 @@ async function startServer() {
 
   // AI Configuration status check endpoint
   app.get('/api/ai/status', (_req, res) => {
+    const rawGeminiKey = process.env.GEMINI_API_KEY;
+    const rawLlm7Key = process.env.LLM7_API_KEY;
     const rawGroqKey = process.env.GROQ_API_KEY;
     const isGeminiConfigured = Boolean(
       rawGeminiKey && rawGeminiKey.trim() !== '' && rawGeminiKey !== 'MY_GEMINI_API_KEY'
@@ -540,7 +542,7 @@ ${webSearchData.length > 0 ? `RETRIEVED LIVE WEB SEARCH RESULTS (${webSearchData
 
         const synthesizedText = await (groqApiKey
           ? callGroqChatCompletion(systemPrompt, userPromptString, groqApiKey)
-          : callLLM7ChatCompletion(systemPrompt, userPromptString, llm7ApiKey));
+          : callLLM7ChatCompletion(systemPrompt, userPromptString, llm7ApiKey || ''));
 
 
         return res.json({

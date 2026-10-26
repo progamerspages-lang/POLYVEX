@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AlertCircle, ExternalLink } from 'lucide-react';
 import { AppDatabase, Course, TimetableEntry, AcademicTask, PracticalSession, ReportDraft, RevisionTopic, RevisionSession, StudyResource, StudentProfile, TaskStatus } from './types/index.ts';
 import { loadDatabase, saveDatabase, INITIAL_PROFILE, INITIAL_COURSES, INITIAL_TIMETABLE, INITIAL_TASKS, INITIAL_PRACTICALS, INITIAL_REPORTS, INITIAL_TOPICS, INITIAL_RESOURCES } from './utils/storage.ts';
 import { Navigation, ScreenTab } from './components/Navigation.tsx';
@@ -18,7 +19,13 @@ import { OnboardingFlow } from './components/OnboardingFlow.tsx';
 import { SignUpScreen } from './components/SignUpScreen.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 import { CreateCourseModal } from './components/CreateCourseModal.tsx';
-import { isSupabaseConfigured, getCurrentSession, signOutUser, onAuthStateChange } from './utils/supabaseClient.ts';
+import {
+  auth,
+  subscribeToAuthState,
+  fetchUserProfile,
+  syncOnboardingCompletion,
+  signOutUser,
+} from './utils/auth.ts';
 
 export type AuthScreenView = 'welcome' | 'onboarding' | 'signup' | 'login' | 'app';
 
@@ -29,12 +36,65 @@ export default function App() {
     return db.profile.preferredTheme === 'dark' ? 'dark' : 'light';
   });
 
-  // Active auth / onboarding screen view
-  const [authScreen, setAuthScreen] = useState<AuthScreenView>(() => {
-    return db.profile.onboardingCompleted ? 'app' : 'welcome';
-  });
+  // Active auth / onboarding screen view - default to login for new visitors
+  const [authScreen, setAuthScreen] = useState<AuthScreenView>('login');
   const [authMode, setAuthMode] = useState<'cloud' | 'local'>('local');
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+  const [tokenServiceNotice, setTokenServiceNotice] = useState<boolean>(false);
+
+  // Subscribe to Firebase Authentication state for session persistence
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthState(async (user) => {
+      if (user) {
+        setUserEmail(user.email || undefined);
+        setAuthMode('cloud');
+        try {
+          const cloudProfile = await fetchUserProfile(user.uid);
+          if (cloudProfile) {
+            setDb((prev) => ({
+              ...prev,
+              profile: {
+                ...prev.profile,
+                name: cloudProfile.displayName || prev.profile.name || user.displayName || 'Scholar',
+                institution: cloudProfile.institution || prev.profile.institution,
+                faculty: cloudProfile.faculty || prev.profile.faculty,
+                department: cloudProfile.department || prev.profile.department,
+                level: cloudProfile.level || prev.profile.level,
+                semester: (cloudProfile.semester as any) || prev.profile.semester,
+                academicSession: cloudProfile.academicSession || prev.profile.academicSession,
+                onboardingCompleted: cloudProfile.onboardingCompleted,
+              },
+            }));
+
+            if (cloudProfile.onboardingCompleted || db.profile.onboardingCompleted) {
+              setAuthScreen('app');
+            } else {
+              setAuthScreen('onboarding');
+            }
+          } else {
+            // New cloud account without document yet or offline cache
+            if (db.profile.onboardingCompleted) {
+              setAuthScreen('app');
+            } else {
+              setAuthScreen('onboarding');
+            }
+          }
+        } catch (err: any) {
+          console.warn('Failed to load user profile on auth state change:', err);
+          if (err?.message?.includes('token-service-api') || err?.message?.includes('securetoken')) {
+            setTokenServiceNotice(true);
+          }
+          if (db.profile.onboardingCompleted) {
+            setAuthScreen('app');
+          } else {
+            setAuthScreen((prev) => (prev === 'login' || prev === 'signup' ? 'onboarding' : prev));
+          }
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [db.profile.onboardingCompleted]);
 
   // Active practical report to open in editor
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -64,33 +124,6 @@ export default function App() {
     });
   };
 
-  // Listen to Supabase Session if configured
-  useEffect(() => {
-    if (isSupabaseConfigured) {
-      getCurrentSession().then((session) => {
-        if (session?.user) {
-          setAuthMode('cloud');
-          setUserEmail(session.user.email);
-          if (db.profile.onboardingCompleted) {
-            setAuthScreen('app');
-          }
-        }
-      });
-
-      const subscription = onAuthStateChange((session) => {
-        if (session?.user) {
-          setAuthMode('cloud');
-          setUserEmail(session.user.email);
-        } else {
-          setUserEmail(undefined);
-        }
-      });
-
-      return () => {
-        subscription?.unsubscribe?.();
-      };
-    }
-  }, [db.profile.onboardingCompleted]);
 
   // Sync database state to localStorage with debounce for performance
   useEffect(() => {
@@ -426,7 +459,7 @@ export default function App() {
     setAuthScreen('onboarding');
   };
 
-  const handleSignUpSuccess = (userData: { email: string; name: string }) => {
+  const handleSignUpSuccess = (userData: { email: string; name: string; uid?: string; onboardingCompleted?: boolean }) => {
     setUserEmail(userData.email);
     setAuthMode('cloud');
     if (userData.name) {
@@ -438,13 +471,18 @@ export default function App() {
         },
       }));
     }
-    setAuthScreen('onboarding');
+    if (userData.onboardingCompleted) {
+      setAuthScreen('app');
+      setCurrentTab('dashboard');
+    } else {
+      setAuthScreen('onboarding');
+    }
   };
 
-  const handleLoginSuccess = (userData: { email: string; name?: string }) => {
+  const handleLoginSuccess = (userData: { email: string; name?: string; uid?: string; onboardingCompleted?: boolean }) => {
     setUserEmail(userData.email);
     setAuthMode('cloud');
-    if (userData.name && !db.profile.name) {
+    if (userData.name) {
       setDb((prev) => ({
         ...prev,
         profile: {
@@ -453,7 +491,7 @@ export default function App() {
         },
       }));
     }
-    if (db.profile.onboardingCompleted) {
+    if (userData.onboardingCompleted || db.profile.onboardingCompleted) {
       setAuthScreen('app');
       setCurrentTab('dashboard');
     } else {
@@ -461,7 +499,7 @@ export default function App() {
     }
   };
 
-  const handleOnboardingComplete = (updatedProfile: StudentProfile, _preferences: string[]) => {
+  const handleOnboardingComplete = async (updatedProfile: StudentProfile, _preferences: string[]) => {
     const finalProfile: StudentProfile = {
       ...updatedProfile,
       onboardingCompleted: true,
@@ -474,15 +512,28 @@ export default function App() {
       ...db,
       profile: finalProfile,
     });
+
+    if (auth.currentUser) {
+      try {
+        await syncOnboardingCompletion(auth.currentUser.uid, finalProfile);
+      } catch (err) {
+        console.warn('Could not sync onboarding to Firestore:', err);
+      }
+    }
+
     setAuthScreen('app');
     setCurrentTab('dashboard');
   };
 
   const handleSignOut = async () => {
-    await signOutUser();
+    try {
+      await signOutUser();
+    } catch (err) {
+      console.warn('Sign out error:', err);
+    }
     setUserEmail(undefined);
     setAuthMode('local');
-    setAuthScreen('welcome');
+    setAuthScreen('login');
   };
 
   const handleReRunOnboarding = () => {
@@ -496,10 +547,10 @@ export default function App() {
   if (authScreen === 'welcome') {
     return (
       <WelcomeScreen
-        onGetStarted={handleWelcomeGetStarted}
-        onLogIn={handleWelcomeLogIn}
+        onGetStarted={() => setAuthScreen('signup')}
+        onLogIn={() => setAuthScreen('login')}
         onContinueLocal={handleWelcomeContinueLocal}
-        isCloudConfigured={isSupabaseConfigured}
+        isCloudConfigured={true}
       />
     );
   }
@@ -540,7 +591,7 @@ export default function App() {
       <OnboardingFlow
         initialProfile={db.profile}
         onComplete={handleOnboardingComplete}
-        onCancel={() => setAuthScreen('welcome')}
+        onCancel={() => setAuthScreen('login')}
       />
     );
   }
@@ -564,8 +615,46 @@ export default function App() {
       />
 
       {/* Main View Area with Desktop Sidebar Offset */}
-      <div className={`transition-all duration-200 ease-in-out ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-64'}`}>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <div className={`min-w-0 max-w-full transition-all duration-200 ease-in-out ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-64'}`}>
+        {tokenServiceNotice && (
+          <div className="bg-[#1C160C] border-b border-[#F59E0B]/30 px-4 py-2.5 text-xs text-[#FDE68A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-2">
+              <span className="p-1 rounded bg-[#F59E0B]/20 text-[#F59E0B] font-bold text-[10px] uppercase tracking-wider">Cloud Notice</span>
+              <span>
+                To enable Cloud Authentication synchronization, please activate the <strong>Token Service API</strong> in your Google Cloud Project:
+                <a
+                  href="https://console.developers.google.com/apis/api/securetoken.googleapis.com/overview?project=771985830822"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1.5 underline text-[#35F2D0] font-semibold hover:text-[#35F2D0]/80 inline-flex items-center gap-1"
+                >
+                  <span>Enable API in Google Cloud Console</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  signOutUser();
+                  setTokenServiceNotice(false);
+                  setAuthMode('local');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-[#2A2315] hover:bg-[#382F1D] text-[11px] text-[#FDE68A] transition cursor-pointer"
+              >
+                Continue in Local Mode
+              </button>
+              <button
+                onClick={() => setTokenServiceNotice(false)}
+                className="text-[#FDE68A]/60 hover:text-[#FDE68A] text-xs font-bold px-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        <main className="w-full min-w-0 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pt-4 sm:pt-6 overflow-x-hidden">
           {currentTab === 'dashboard' && (
             <Dashboard
               db={db}
@@ -663,6 +752,9 @@ export default function App() {
             <PromptLibraryModule
               courses={db.courses}
               studentLevel={db.profile.level}
+              resources={db.resources}
+              onNavigate={setCurrentTab}
+              onOpenReportDraft={handleOpenReportDraft}
               onUseInAssistant={(cId, pText) => {
                 setAssistantPrefill({ courseId: cId, topic: pText.slice(0, 40) });
                 setCurrentTab('ai-assistant');

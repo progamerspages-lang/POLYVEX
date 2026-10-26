@@ -1,0 +1,220 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Student profile, institution information, and personal preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "institution": { "type": "string", "maxLength": 200 },
+        "faculty": { "type": "string", "maxLength": 200 },
+        "department": { "type": "string", "maxLength": 200 },
+        "level": { "type": "string", "maxLength": 50 },
+        "semester": { "type": "string", "maxLength": 50 },
+        "academicSession": { "type": "string", "maxLength": 50 },
+        "preferredTheme": { "type": "string", "maxLength": 20 },
+        "weekStartPreference": { "type": "string", "maxLength": 20 },
+        "onboardingCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Registered academic course with credit units and instructor metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 200 },
+        "creditUnits": { "type": "number" },
+        "department": { "type": "string", "maxLength": 200 },
+        "semester": { "type": "string", "maxLength": 50 },
+        "lecturer": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 4000 },
+        "color": { "type": "string", "maxLength": 32 }
+      },
+      "required": ["id", "code", "title"]
+    },
+    "TimetableEntry": {
+      "title": "Timetable Entry",
+      "description": "A scheduled lecture, lab, tutorial, or seminar class block.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "dayOfWeek": { "type": "string", "maxLength": 20 },
+        "startTime": { "type": "string", "maxLength": 10 },
+        "endTime": { "type": "string", "maxLength": 10 },
+        "venue": { "type": "string", "maxLength": 128 },
+        "activityType": { "type": "string", "maxLength": 32 },
+        "lecturer": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "recurring": { "type": "boolean" }
+      },
+      "required": ["id", "courseId", "dayOfWeek", "startTime", "endTime"]
+    },
+    "AcademicTask": {
+      "title": "Academic Task",
+      "description": "Assignment, quiz, test, project, or exam deliverable.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "taskType": { "type": "string", "maxLength": 64 },
+        "dateAssigned": { "type": "string", "maxLength": 20 },
+        "dueDate": { "type": "string", "maxLength": 20 },
+        "dueTime": { "type": "string", "maxLength": 10 },
+        "priority": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "maxLength": 32 },
+        "percentComplete": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 4000 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "title", "courseId", "taskType", "priority", "status"]
+    },
+    "PracticalSession": {
+      "title": "Practical Session",
+      "description": "Laboratory practical session or experiment tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "experimentTitle": { "type": "string", "maxLength": 256 },
+        "practicalDate": { "type": "string", "maxLength": 20 },
+        "reportDeadline": { "type": "string", "maxLength": 20 },
+        "reportStatus": { "type": "string", "maxLength": 32 },
+        "experimentNotes": { "type": "string", "maxLength": 5000 },
+        "apparatus": { "type": "string", "maxLength": 2000 },
+        "measurementsNotes": { "type": "string", "maxLength": 5000 },
+        "reportDraftId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "courseId", "experimentTitle", "practicalDate", "reportStatus"]
+    },
+    "ReportDraft": {
+      "title": "Report Draft",
+      "description": "Scientific lab report draft with measurements and calculations.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "practicalId": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "experimentTitle": { "type": "string", "maxLength": 256 },
+        "experimentDate": { "type": "string", "maxLength": 20 },
+        "submissionDate": { "type": "string", "maxLength": 20 },
+        "aim": { "type": "string", "maxLength": 2000 },
+        "objectives": { "type": "string", "maxLength": 2000 },
+        "apparatus": { "type": "string", "maxLength": 2000 },
+        "theory": { "type": "string", "maxLength": 8000 },
+        "diagramNotes": { "type": "string", "maxLength": 2000 },
+        "procedure": { "type": "string", "maxLength": 8000 },
+        "observations": { "type": "string", "maxLength": 8000 },
+        "calculations": { "type": "string", "maxLength": 8000 },
+        "discussion": { "type": "string", "maxLength": 8000 },
+        "sourcesOfError": { "type": "string", "maxLength": 4000 },
+        "precautions": { "type": "string", "maxLength": 4000 },
+        "conclusion": { "type": "string", "maxLength": 4000 },
+        "references": { "type": "string", "maxLength": 2000 },
+        "isHypothetical": { "type": "boolean" },
+        "lastSaved": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "courseId", "experimentTitle"]
+    },
+    "RevisionTopic": {
+      "title": "Revision Topic",
+      "description": "Syllabus topic for spaced revision and mastery tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 256 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "confidence": { "type": "number" },
+        "lastRevisedDate": { "type": "string", "maxLength": 20 },
+        "nextRevisionDate": { "type": "string", "maxLength": 20 },
+        "questionsCompleted": { "type": "number" },
+        "practiceScore": { "type": "number" },
+        "status": { "type": "string", "maxLength": 32 },
+        "notes": { "type": "string", "maxLength": 4000 }
+      },
+      "required": ["id", "courseId", "title", "confidence", "status"]
+    },
+    "RevisionSession": {
+      "title": "Revision Session",
+      "description": "Logged study session with topic reference and confidence delta.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "topicId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 20 },
+        "durationMinutes": { "type": "number" },
+        "confidenceBefore": { "type": "number" },
+        "confidenceAfter": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 2000 }
+      },
+      "required": ["id", "topicId", "date", "durationMinutes"]
+    },
+    "StudyResource": {
+      "title": "Study Resource",
+      "description": "Academic reference, textbook, PDF, link, or note.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 256 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "topic": { "type": "string", "maxLength": 256 },
+        "topicId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "maxLength": 64 },
+        "linkOrRef": { "type": "string", "maxLength": 1000 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "dateAdded": { "type": "string", "maxLength": 20 },
+        "notes": { "type": "string", "maxLength": 2000 }
+      },
+      "required": ["id", "title", "courseId", "type", "linkOrRef"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Student user profile and academic identity."
+    },
+    "/users/{userId}/courses/{courseId}": {
+      "schema": "Course",
+      "description": "User courses scoped per authenticated student."
+    },
+    "/users/{userId}/timetable/{entryId}": {
+      "schema": "TimetableEntry",
+      "description": "User timetable lecture and lab schedule entries."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "AcademicTask",
+      "description": "User assignments, tests, and deliverables."
+    },
+    "/users/{userId}/practicals/{practicalId}": {
+      "schema": "PracticalSession",
+      "description": "User laboratory practical sessions."
+    },
+    "/users/{userId}/reports/{reportId}": {
+      "schema": "ReportDraft",
+      "description": "User scientific practical reports and reading tables."
+    },
+    "/users/{userId}/topics/{topicId}": {
+      "schema": "RevisionTopic",
+      "description": "User revision topics and mastery levels."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "RevisionSession",
+      "description": "User logged revision study sessions."
+    },
+    "/users/{userId}/resources/{resourceId}": {
+      "schema": "StudyResource",
+      "description": "User academic materials, references, and study links."
+    }
+  }
+}

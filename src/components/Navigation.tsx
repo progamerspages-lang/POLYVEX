@@ -97,7 +97,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   // Group 2: STUDY TOOLS & SYSTEM
   const studyToolItems: Array<{ id: ScreenTab; label: string; icon: React.ReactNode }> = [
     { id: 'ai-assistant', label: 'AI Study Assistant', icon: <Sparkles className="w-4 h-4 text-[#35F2D0]" /> },
-    { id: 'prompt-library', label: 'Prompt Library', icon: <BookOpen className="w-4 h-4" /> },
+    { id: 'prompt-library', label: 'AI Study Resources', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'resources', label: 'Resource Library', icon: <FolderOpen className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings & Data', icon: <Settings className="w-4 h-4" /> },
   ];

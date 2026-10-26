@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
-import { Mail, X, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
-import { isSupabaseConfigured, resetPasswordForEmail } from '../utils/supabaseClient.ts';
+import { Mail, X, AlertCircle, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { sendPasswordReset, getAuthErrorMessage } from '../utils/auth.ts';
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialEmail?: string;
 }
 
-export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose }) => {
-  const [email, setEmail] = useState('');
+export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
+  isOpen,
+  onClose,
+  initialEmail = '',
+}) => {
+  const [email, setEmail] = useState(initialEmail);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -18,59 +23,62 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     e.preventDefault();
     setStatusMessage(null);
 
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setStatusMessage({ type: 'error', text: 'Please enter a valid email address.' });
-      return;
-    }
-
-    if (!isSupabaseConfigured) {
-      setStatusMessage({
-        type: 'error',
-        text: 'Supabase Auth is not configured in this environment (missing VITE_SUPABASE_URL). Live email dispatch requires cloud auth setup.',
-      });
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await resetPasswordForEmail(email.trim());
-      if (res.success) {
-        setStatusMessage({
-          type: 'success',
-          text: `Password reset instructions dispatched to ${email.trim()}. Please inspect your inbox.`,
-        });
-      } else {
-        setStatusMessage({
-          type: 'error',
-          text: res.error || 'Failed to request password reset.',
-        });
-      }
+      await sendPasswordReset(cleanEmail);
+      setStatusMessage({
+        type: 'success',
+        text: `Password recovery link dispatched to ${cleanEmail}. Please check your inbox and spam folder.`,
+      });
     } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'Error sending password reset request.' });
+      setStatusMessage({
+        type: 'error',
+        text: getAuthErrorMessage(err),
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleClose = () => {
+    setStatusMessage(null);
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="forgot-password-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+    >
       <div className="bg-[#171A1E] border border-[#262A30] rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-[#F5F7FA]">
         <button
           type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 text-[#A1A8B3] hover:text-[#F5F7FA] p-1 rounded-lg transition"
+          onClick={handleClose}
+          aria-label="Close modal"
+          className="absolute top-4 right-4 text-[#A1A8B3] hover:text-[#F5F7FA] p-1.5 rounded-lg hover:bg-[#262A30]/60 transition cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="text-lg font-bold text-[#F5F7FA]">Reset Password</h3>
+        <h3 id="forgot-password-title" className="text-lg font-bold text-[#F5F7FA]">
+          Reset Password
+        </h3>
         <p className="text-xs text-[#A1A8B3] mt-1">
-          Enter the email associated with your POLYVEX cloud account to receive a secure password recovery link.
+          Enter your registered POLYVEX account email to receive a secure password reset link.
         </p>
 
         {statusMessage && (
           <div
+            role="alert"
             className={`mt-4 p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
               statusMessage.type === 'success'
                 ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
@@ -88,7 +96,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-[#F5F7FA] mb-1">
+            <label htmlFor="reset-email" className="block text-xs font-semibold text-[#F5F7FA] mb-1">
               Account Email
             </label>
             <div className="relative">
@@ -96,10 +104,12 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                 <Mail className="w-4 h-4" />
               </div>
               <input
+                id="reset-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="student@university.edu"
+                required
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#090B0D] border border-[#262A30] text-[#F5F7FA] placeholder-[#64748B] text-sm focus:outline-none focus:border-[#35F2D0] transition"
               />
             </div>
@@ -108,7 +118,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-[#A1A8B3] hover:text-[#F5F7FA] bg-[#090B0D] border border-[#262A30] transition cursor-pointer"
             >
               Cancel
@@ -118,7 +128,12 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
               disabled={loading}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[#090B0D] bg-[#35F2D0] hover:bg-[#35F2D0]/90 transition shadow-sm disabled:opacity-60 cursor-pointer"
             >
-              {loading ? <span>Sending...</span> : (
+              {loading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Sending...</span>
+                </>
+              ) : (
                 <>
                   <span>Send Recovery Email</span>
                   <ArrowRight className="w-3.5 h-3.5" />

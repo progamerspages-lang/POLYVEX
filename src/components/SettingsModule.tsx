@@ -19,7 +19,6 @@ import {
 import { AppDatabase, StudentProfile } from '../types/index.ts';
 import { exportDatabaseAsJson, exportTasksToCsv } from '../utils/storage.ts';
 import { validateBackupSchema } from '../utils/academicMath.ts';
-import { isSupabaseConfigured } from '../utils/supabaseClient.ts';
 
 interface SettingsModuleProps {
   db: AppDatabase;
@@ -306,46 +305,23 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
               <span>Authentication & Data Architecture</span>
             </h2>
 
-            {/* Cloud Status or Local Mode Status */}
-            {isSupabaseConfigured ? (
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/60 dark:border-emerald-800/60 rounded-xl text-emerald-950 dark:text-emerald-200 space-y-1">
-                <div className="flex items-center justify-between">
-                  <strong className="font-semibold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Supabase Cloud Auth Active</span>
-                  </strong>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-200/50 dark:bg-emerald-800/40">
-                    {authMode === 'cloud' ? 'Authenticated' : 'Local Workspace'}
-                  </span>
-                </div>
-                <p className="text-[11px] leading-relaxed">
-                  {userEmail ? `Signed in as: ${userEmail}` : 'Connected to Supabase cloud project.'}
-                </p>
+            {/* Local Mode Status */}
+            <div className="p-3 bg-stone-50 dark:bg-[#1A1E24] border border-[#262A30] rounded-xl text-stone-700 dark:text-stone-300 space-y-2">
+              <div className="flex items-center justify-between">
+                <strong className="font-semibold flex items-center gap-1.5 text-stone-900 dark:text-stone-100">
+                  <HardDrive className="w-3.5 h-3.5 text-[#35F2D0]" />
+                  <span>Offline Local Storage Active</span>
+                </strong>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#171A1E] text-[#35F2D0] border border-[#262A30]">
+                  {authMode === 'cloud' && userEmail ? 'Signed In' : 'Local Mode'}
+                </span>
               </div>
-            ) : (
-              <div className="p-3 bg-stone-50 dark:bg-[#1A1E24] border border-[#262A30] rounded-xl text-stone-700 dark:text-stone-300 space-y-2">
-                <div className="flex items-center justify-between">
-                  <strong className="font-semibold flex items-center gap-1.5 text-stone-900 dark:text-stone-100">
-                    <HardDrive className="w-3.5 h-3.5 text-[#35F2D0]" />
-                    <span>Offline Local Storage Active</span>
-                  </strong>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#171A1E] text-[#35F2D0] border border-[#262A30]">
-                    Local Mode
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#A1A8B3] leading-relaxed">
-                  Polyvex is running locally in your browser storage with zero cloud dependencies. No mandatory cloud accounts or recurring fees.
-                </p>
-                <div className="p-2.5 rounded-lg bg-[#090B0D] border border-[#262A30] text-[10px] text-stone-400 space-y-1">
-                  <span className="font-semibold text-stone-300 block">Supabase Cloud Setup:</span>
-                  <p>To enable cloud authentication and sync across devices, provide these keys in your <code className="text-[#35F2D0]">.env</code>:</p>
-                  <code className="block text-[10px] text-stone-400 font-mono select-all">
-                    VITE_SUPABASE_URL=https://your-project.supabase.co<br />
-                    VITE_SUPABASE_ANON_KEY=your-anon-key
-                  </code>
-                </div>
-              </div>
-            )}
+              <p className="text-[11px] text-[#A1A8B3] leading-relaxed">
+                {userEmail
+                  ? `Active account: ${userEmail}. Workspace data is safely preserved in browser storage.`
+                  : 'Polyvex is running locally in your browser storage with zero cloud dependencies. No mandatory cloud accounts or recurring fees.'}
+              </p>
+            </div>
 
             {/* Quick Actions: Re-run Onboarding & Sign Out */}
             <div className="flex items-center gap-2 pt-1 flex-wrap">

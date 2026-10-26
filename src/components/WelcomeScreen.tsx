@@ -156,11 +156,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div className="mt-10 p-3.5 rounded-xl bg-[#171A1E]/80 border border-[#262A30] text-xs text-[#A1A8B3] max-w-lg">
           {isCloudConfigured ? (
             <span className="text-emerald-400 font-medium">
-              ✓ Supabase Cloud Authentication is configured and active.
+              ✓ Cloud Authentication is configured and active.
             </span>
           ) : (
             <span>
-              ℹ️ Polyvex starts ready in <strong className="text-[#F5F7FA]">Local-Only Mode</strong>. To sync across devices, configure Supabase credentials in your project environment.
+              ℹ️ Polyvex starts ready in <strong className="text-[#F5F7FA]">Local-Only Mode</strong>. All data is saved privately in offline browser storage.
             </span>
           )}
         </div>

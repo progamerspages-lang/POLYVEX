@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { preprocessMarkdown, renderCellWithBreaks, markdownComponents, PolyvexMarkdown } from '../utils/markdownUtils.tsx';
 import {
   Sparkles,
   Globe,
@@ -681,7 +682,7 @@ You can copy the structured research prompt containing both your course context 
   }, [courseResources, pickerSearch, pickerTypeFilter]);
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto pb-6">
+    <div className="w-full min-w-0 max-w-5xl mx-auto space-y-4 pb-6 overflow-x-hidden">
       {/* 1. Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#171A1E] px-5 py-4 rounded-2xl border border-[#262A30] shadow-sm">
         <div className="flex items-center gap-3">
@@ -769,9 +770,9 @@ You can copy the structured research prompt containing both your course context 
       )}
 
       {/* 2. Main Conversation Area */}
-      <div className="bg-[#171A1E] rounded-2xl border border-[#262A30] min-h-[460px] flex flex-col justify-between shadow-sm overflow-hidden">
+      <div className="w-full min-w-0 bg-[#171A1E] rounded-2xl border border-[#262A30] min-h-[460px] flex flex-col justify-between shadow-sm overflow-hidden">
         {/* Messages Thread */}
-        <div className="p-4 sm:p-6 space-y-6 flex-1 overflow-y-auto" onScroll={handleChatScroll}>
+        <div className="w-full min-w-0 p-3 sm:p-6 space-y-6 flex-1 overflow-y-auto overflow-x-hidden" onScroll={handleChatScroll}>
           {messages.length === 0 ? (
             /* First-Time Welcoming Empty State */
             <div className="py-10 px-4 text-center max-w-2xl mx-auto space-y-6">
@@ -1313,76 +1314,149 @@ You can copy the structured research prompt containing both your course context 
   );
 };
 
+
+
 // Memoized message item to prevent unnecessary re-renders during streaming
-const ChatMessageItem = React.memo(({ msg, selectedMaterials, handleCopy, handleRegenerate, handleFeedback, handleShare, index, messages, constructPrompt, setPreviewPromptText, setShowPromptPreview, copiedId, activeMenuMsgId, setActiveMenuMsgId }: any) => {
+const ChatMessageItem = React.memo(({ msg, handleCopy, handleRegenerate, handleFeedback, handleShare, copiedId }: any) => {
+  const cleanedText = useMemo(() => preprocessMarkdown(msg.text), [msg.text]);
+
   return (
-    <div className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <div className={`w-full min-w-0 max-w-full flex gap-2.5 sm:gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
       {msg.role === 'assistant' && (
-        <div className="w-8 h-8 rounded-xl bg-[#090B0D] border border-[#262A30] flex items-center justify-center shrink-0 mt-1">
-          <PolyvexLogo size={20} />
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#090B0D] border border-[#262A30] flex items-center justify-center shrink-0 mt-1 shadow-xs">
+          <PolyvexLogo size={18} />
         </div>
       )}
 
       <div
-        className={`max-w-3xl rounded-2xl p-4 sm:p-5 text-sm leading-relaxed space-y-3 ${
+        className={`w-full min-w-0 max-w-full sm:max-w-3xl rounded-2xl p-3.5 sm:p-5 text-sm leading-relaxed space-y-3 overflow-hidden ${
           msg.role === 'user'
             ? 'bg-[#102427] text-[#F5F7FA] border border-[#35F2D0]/30 shadow-xs'
             : 'bg-[#090B0D] text-[#F5F7FA] border border-[#262A30] shadow-sm'
         }`}
       >
         {/* Message Meta Info */}
-        <div className="flex items-center justify-between text-[11px] text-[#A1A8B3] pb-1 border-b border-[#262A30]/50">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-[#F5F7FA]">
+        <div className="flex items-center justify-between text-[11px] text-[#A1A8B3] pb-1 border-b border-[#262A30]/50 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+            <span className="font-semibold text-[#F5F7FA] truncate">
               {msg.role === 'user' ? 'You' : 'Polyvex Study Assistant'}
             </span>
             {msg.mode && (
-              <span className="px-1.5 py-0.5 rounded bg-[#171A1E] text-[#35F2D0] border border-[#262A30] uppercase font-mono text-[10px]">
+              <span className="px-1.5 py-0.5 rounded bg-[#171A1E] text-[#35F2D0] border border-[#262A30] uppercase font-mono text-[10px] shrink-0">
                 {msg.mode === 'ai-mode' || msg.mode === 'web-search' ? 'AI Mode' : msg.mode === 'study-materials' ? 'Study Materials' : 'Combined'}
               </span>
             )}
             {msg.courseCode && (
-              <span className="font-mono text-[10px] text-[#64748B]">
+              <span className="font-mono text-[10px] text-[#64748B] shrink-0">
                 [{msg.courseCode}]
               </span>
             )}
           </div>
-          <span>{msg.timestamp}</span>
+          <span className="shrink-0 pl-2 text-[10px] sm:text-[11px]">{msg.timestamp}</span>
         </div>
 
         {/* Body Text with Markdown */}
-        <div className="font-sans text-base text-[#F5F7FA] space-y-3 selection:bg-[#35F2D0]/30 markdown-body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
-        </div>
+        <PolyvexMarkdown text={msg.text} />
 
         {/* Citations & Sources Panel */}
-        {(Boolean(msg.materialCitations?.length) || Boolean(msg.webSources?.length)) && (
-          <div className="mt-4 pt-3 border-t border-[#262A30] space-y-3">
+        {((msg.materialCitations && msg.materialCitations.length > 0) || (msg.webSources && msg.webSources.length > 0)) && (
+          <div className="mt-4 pt-3 border-t border-[#262A30] space-y-2.5 max-w-full overflow-hidden">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#A1A8B3] block font-semibold">
               Referenced Sources & Citations:
             </span>
-            {/* ... citations ... */}
+            <div className="flex flex-wrap gap-2">
+              {msg.materialCitations?.map((mat: any, i: number) => (
+                <div
+                  key={mat.id || i}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#101317] border border-[#262A30] text-[11px] text-[#35F2D0] max-w-full"
+                >
+                  <BookOpen className="w-3 h-3 shrink-0" />
+                  <span className="truncate max-w-[200px] sm:max-w-[260px]">{mat.title}</span>
+                </div>
+              ))}
+              {msg.webSources?.map((src: any, i: number) => (
+                <a
+                  key={i}
+                  href={src.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#101317] border border-[#262A30] text-[11px] text-[#A1A8B3] hover:text-[#35F2D0] hover:border-[#35F2D0]/40 transition max-w-full cursor-pointer"
+                >
+                  <ExternalLink className="w-3 h-3 shrink-0 text-[#35F2D0]" />
+                  <span className="truncate max-w-[180px] sm:max-w-[240px]">{src.title || src.domain || 'Web Source'}</span>
+                </a>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Response Action Toolbar (Compact Three-Dot Menu) */}
+        {/* Response Action Toolbar */}
         {msg.role === 'assistant' && (
-          <div className="pt-2 flex items-center justify-end border-t border-[#262A30]/50 text-[11px] relative assistant-action-menu-container">
-            <div className="relative">
+          <div className="pt-2 flex items-center justify-between border-t border-[#262A30]/50 text-[11px]">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => setActiveMenuMsgId(activeMenuMsgId === msg.id ? null : msg.id)}
-                title="More response actions"
-                className="p-1.5 rounded-lg bg-[#171A1E] hover:bg-[#20252C] text-[#A1A8B3] hover:text-[#F5F7FA] border border-[#262A30] transition cursor-pointer flex items-center justify-center"
+                onClick={() => handleCopy(msg.text, msg.id)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-[#171A1E] text-[#A1A8B3] hover:text-[#35F2D0] transition cursor-pointer"
+                title="Copy response"
               >
-                <MoreVertical className="w-4 h-4" />
+                {copiedId === msg.id ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-[#35F2D0]" />
+                    <span className="text-[10px] text-[#35F2D0]">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Copy</span>
+                  </>
+                )}
               </button>
+              <button
+                type="button"
+                onClick={() => handleRegenerate(msg)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#171A1E] text-[#A1A8B3] hover:text-[#35F2D0] transition cursor-pointer"
+                title="Regenerate response"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="text-[10px] hidden sm:inline">Retry</span>
+              </button>
+              <div className="h-3 w-[1px] bg-[#262A30] mx-0.5" />
+              <button
+                type="button"
+                onClick={() => handleFeedback(msg.id, 'good')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  msg.feedback === 'good' ? 'bg-[#35F2D0]/10 text-[#35F2D0]' : 'text-[#64748B] hover:text-[#A1A8B3]'
+                }`}
+                title="Good response"
+              >
+                <ThumbsUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFeedback(msg.id, 'bad')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  msg.feedback === 'bad' ? 'bg-rose-500/10 text-rose-400' : 'text-[#64748B] hover:text-[#A1A8B3]'
+                }`}
+                title="Poor response"
+              >
+                <ThumbsDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-              {activeMenuMsgId === msg.id && (
-                <div className="absolute right-0 bottom-full mb-2 w-52 rounded-xl bg-[#101317] border border-[#262A30] shadow-2xl py-1.5 z-50 text-xs animate-fadeIn">
-                  {/* ... menu content ... */}
-                </div>
-              )}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleShare(msg)}
+                className="p-1.5 rounded-lg hover:bg-[#171A1E] text-[#A1A8B3] hover:text-[#F5F7FA] transition cursor-pointer"
+                title="Share response"
+              >
+                {copiedId === `share-${msg.id}` ? (
+                  <Check className="w-3.5 h-3.5 text-[#35F2D0]" />
+                ) : (
+                  <Share2 className="w-3.5 h-3.5" />
+                )}
+              </button>
             </div>
           </div>
         )}
